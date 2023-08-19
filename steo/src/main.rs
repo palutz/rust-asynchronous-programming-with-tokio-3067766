@@ -23,33 +23,29 @@ async fn async_hello(id : i32) {
 }
 
 async fn mutex_hello(iarc: Arc<Mutex<i32>>, newvalue: i32) {
-    let thn = newvalue - 100;
-    println!("{} ***********************", thn);
-    println!("thread {}", thn);
-    println!("{} ***********************", thn);
-    let mut remote_val = iarc.lock().await;
+    let mut newthread = iarc.lock().await;
+    *newthread = newvalue;
+    println!("Hello from the new thread {}", newvalue);
 
-    *remote_val = newvalue;
-    println!("new value is {}", remote_val);
-
-    let _ = sleep(Duration::from_secs(3));
+    thread::sleep(time::Duration::from_secs(1));
 }
 
-fn playing_with_mutex() -> Vec<tokio::task::JoinHandle<()>> {
-    let anum = 13i32;
+async fn playing_with_mutex() {
+    let valmutex = 032;
+    let mymutex = Mutex::new(valmutex);
+    let shared_mutex = Arc::new(mymutex);
+    let mut handles  = vec!();
 
-    let mutexvec = Mutex::new(anum);
-    let mutexarc = Arc::new(mutexvec);
-
-    let mut handles = vec!();
-
-    for i in 100..110 {
-        handles.push(tokio::spawn(
-            mutex_hello(mutexarc.clone(), i)
-        ));
+    for i in 0..10 {
+        handles.push(
+            tokio::spawn(mutex_hello(shared_mutex.clone(), i))
+        );
+        println!("Old thread i: {:?} ^^^^^^^^^^^^ ", i);
     }
 
-    handles
+    for h in handles {
+        h.await.unwrap();
+    }
 }
 
 async fn chapter2 () {
@@ -69,9 +65,7 @@ async fn chapter2 () {
 }
 
 async fn chapter3() {
-    for t in playing_with_mutex() {
-        let _ = t.await;
-    }
+    let _ = playing_with_mutex().await;
 }
 
 #[tokio::main]
